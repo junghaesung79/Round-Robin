@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    .container {
+      display: flex;
+      flex-direction: column;
+    }
+    .data-container {
+      display: flex;
+      flex-direction: row;
+    }
+    .detail-container {
+      margin: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .table {
+      border-collapse: collapse;
+      width: 600px;
+    }
+    .table th, .table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+    .table th {
+      background-color: #f2f2f2;
+    }
+    .table input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .delta-input {
+      width: 100px;
+    }
+    .button-container button {
+      margin-right: 5px;
+    }
+    .timeline {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 5px;
+      border: 1px solid #ccc;
+      padding: 10px;
+    }
+    .process-box {
+      background-color: #4CAF50;
+      color: white;
+      padding: 5px;
+      text-align: center;
+    }
+    .avg-response-time {
+      margin-top: 20px;
+      font-size: 16px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="data-container">
+      <div class="table-container">
+        <table class="table"></table>
+      </div>
+      <div class="detail-container">
+        <div class="delta-container">
+          Delta: <input type="number" class="delta-input" value="2" min="2" max="5">
+        </div>
+        <div class="button-container">
+          <button class="add-button">+</button>
+          <button class="remove-button">-</button>
+          <button class="fill-button">Fill Random Data</button>
+          <button class="start-button">Start</button>
+        </div>
+      </div>
+    </div>
+    <div class="timeline"></div>
+    <div class="avg-response-time"></div>
+  </div>
+  <script>
+
+const table = document.querySelector('.table');
+const data = {};
+const timelineDiv = document.querySelector('.timeline');
+
+const headerRow = document.createElement('tr');
+["Process ID", "Arrival Time", "Service Time"].forEach((header) => {
+  const th = document.createElement('th');
+  th.innerText = header;
+  headerRow.appendChild(th);
+});
+table.appendChild(headerRow);
+
+const INITIAL_ROW_COUNT = 2;
+for (let i = 0; i < INITIAL_ROW_COUNT; i++) {
+  addRow();
+}
+
+function addRow() {
+  const rowCount = table.querySelectorAll('tr').length - 1;
+  if (rowCount >= 10) return;
+
+  const row = document.createElement('tr');
+  for (let j = 0; j < 3; j++) {
+    const cell = document.createElement('td');
+    if (j === 0) {
+      cell.textContent = `P${rowCount + 1}`;
+    } else {
+      const input = document.createElement('input');
+      input.type = 'number';
+      const id = `P${rowCount + 1}`;
+      const property = (j === 1) ? 'Arrival Time' : 'Service Time';
+      input.setAttribute('data-id', id);
+      input.setAttribute('data-property', property);
+      input.classList.add(`row-${rowCount + 1}`, `column-${j + 1}`);
+      input.addEventListener('input', updateData);
+      cell.appendChild(input);
+    }
+    row.appendChild(cell);
+  }
+  table.appendChild(row);
+}
+
+function removeRow() {
+  const rowCount = table.querySelectorAll('tr').length - 1;
+  if (rowCount <= 3) return;
+
+  const lastRow = table.lastChild;
+  const inputs = lastRow.querySelectorAll('input');
+  inputs.forEach(input => {
+    const id = input.getAttribute('data-id');
+    delete data[id];
+  });
+
+  table.removeChild(lastRow);
+}
+
+const addButton = document.querySelector('.add-button');
+addButton.addEventListener('click', addRow);
+
+const removeButton = document.querySelector('.remove-button');
+removeButton.addEventListener('click', removeRow);
+
+function updateData(event) {
+  const id = event.target.getAttribute('data-id');
+  const property = event.target.getAttribute('data-property');
+  const value = event.target.value;
+
+  if (!data[id]) {
+    data[id] = {};
+  }
+  data[id][property] = Number(value);
+}
+
+const fillButton = document.querySelector('.fill-button');
+fillButton.addEventListener('click', () => {
+  const MAX_RANDOM_SERVICE_TIME = 10;
+  const rows = table.querySelectorAll('tr');
+  let previousArrivalTime = 0; // 이전 프로세스의 Arrival Time을 저장
+
+  for (let i = 1; i < rows.length; i++) {
+    const inputs = rows[i].querySelectorAll('input');
+    const arrivalTime = (i === 1) ? 0 : previousArrivalTime + Math.floor(Math.random() * 3) + 1;
+    inputs[0].value = arrivalTime; // 설정된 Arrival Time 값을 입력 필드에 적용
+    inputs[1].value = Math.floor(Math.random() * MAX_RANDOM_SERVICE_TIME) + 1; // Service Time은 랜덤 값
+
+    previousArrivalTime = arrivalTime; // 이번 프로세스의 Arrival Time을 저장
+
+    updateData({ target: inputs[0] });
+    updateData({ target: inputs[1] });
+  }
+});
+
+const startButton = document.querySelector('.start-button');
+const avgResponseTimeDiv = document.querySelector('.avg-response-time');
+
+startButton.addEventListener('click', () => {
+  const deltaInput = document.querySelector('.delta-input');
+  const quantum = parseInt(deltaInput.value, 10) || 2;
+  timelineDiv.innerHTML = '';
+  avgResponseTimeDiv.innerHTML = '';
+
+  function simulateRoundRobin(data, quantum) {
+    let time = 0;
+    const queue = [];
+    const responseTimes = {};
+    const arrivalTimes = {};
+    const readyQueue = [];
+
+    // Initialize ready queue with processes as they arrive
+    Object.keys(data).forEach(id => {
+      const process = { id, ...data[id] };
+      arrivalTimes[process.id] = process['Arrival Time'];
+      readyQueue.push(process);
+    });
+
+    // Sort the ready queue by arrival time
+    readyQueue.sort((a, b) => a['Arrival Time'] - b['Arrival Time']);
+
+    while (readyQueue.length > 0 || queue.length > 0) {
+      // Add arrived processes to the queue
+      while (readyQueue.length > 0 && readyQueue[0]['Arrival Time'] <= time) {
+        queue.push(readyQueue.shift());
+      }
+
+      if (queue.length > 0) {
+        const process = queue.shift();
+        const execTime = Math.min(process['Service Time'], quantum);
+        const start = time;
+        const finish = start + execTime;
+
+        const box = document.createElement('div');
+        box.className = 'process-box';
+        box.style.width = `${execTime * 100}px`;
+        box.textContent = `${process.id} (${start}-${finish})`;
+        timelineDiv.appendChild(box);
+
+        process['Service Time'] -= execTime;
+
+        if (!responseTimes[process.id]) {
+          responseTimes[process.id] = start - arrivalTimes[process.id];
+        }
+
+        if (process['Service Time'] > 0) {
+          process['Arrival Time'] = finish; // Update arrival time for next round
+          readyQueue.push(process);
+          readyQueue.sort((a, b) => a['Arrival Time'] - b['Arrival Time']); // Ensure queue is sorted by new arrival times
+        } else {
+          responseTimes[process.id] = finish - arrivalTimes[process.id];
+        }
+
+        time = finish;
+      } else {
+        time++;
+      }
+    }
+
+    const sumResponseTimes = Object.values(responseTimes).reduce((acc, cur) => acc + cur, 0);
+    const avgResponseTime = sumResponseTimes / Object.keys(responseTimes).length;
+
+    // 수식 표시
+    avgResponseTimeDiv.innerHTML = `평균 응답 시간 = (${Object.values(responseTimes).join(' + ')}) / ${Object.keys(responseTimes).length} = ${avgResponseTime.toFixed(2)}`;
+  }
+
+  simulateRoundRobin(data, quantum);
+});
+
+  </script>
+</body>
+</html>
