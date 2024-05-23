@@ -89,6 +89,7 @@ const table = document.querySelector('.table');
 const data = {};
 const timelineDiv = document.querySelector('.timeline');
 
+// 테이블 헤더 생성
 const headerRow = document.createElement('tr');
 ["Process ID", "Arrival Time", "Service Time"].forEach((header) => {
   const th = document.createElement('th');
@@ -102,6 +103,7 @@ for (let i = 0; i < INITIAL_ROW_COUNT; i++) {
   addRow();
 }
 
+// 행 추가 함수
 function addRow() {
   const rowCount = table.querySelectorAll('tr').length - 1;
   if (rowCount >= 10) return;
@@ -127,6 +129,7 @@ function addRow() {
   table.appendChild(row);
 }
 
+// 행 제거 함수
 function removeRow() {
   const rowCount = table.querySelectorAll('tr').length - 1;
   if (rowCount <= 3) return;
@@ -147,6 +150,7 @@ addButton.addEventListener('click', addRow);
 const removeButton = document.querySelector('.remove-button');
 removeButton.addEventListener('click', removeRow);
 
+// 데이터 업데이트 함수
 function updateData(event) {
   const id = event.target.getAttribute('data-id');
   const property = event.target.getAttribute('data-property');
@@ -158,19 +162,21 @@ function updateData(event) {
   data[id][property] = Number(value);
 }
 
+// 랜덤 데이터 채우기
 const fillButton = document.querySelector('.fill-button');
 fillButton.addEventListener('click', () => {
   const MAX_RANDOM_SERVICE_TIME = 10;
+  const MAX_ARRIVAL_TIME_ADD = 3;
   const rows = table.querySelectorAll('tr');
-  let previousArrivalTime = 0; // 이전 프로세스의 Arrival Time을 저장
+  let previousArrivalTime = 0; // 이전 프로세스의 Arrival Time 저장
 
   for (let i = 1; i < rows.length; i++) {
     const inputs = rows[i].querySelectorAll('input');
-    const arrivalTime = (i === 1) ? 0 : previousArrivalTime + Math.floor(Math.random() * 3) + 1;
+    const arrivalTime = (i === 1) ? 0 : previousArrivalTime + Math.floor(Math.random() * MAX_ARRIVAL_TIME_ADD) + 1;
     inputs[0].value = arrivalTime; // 설정된 Arrival Time 값을 입력 필드에 적용
     inputs[1].value = Math.floor(Math.random() * MAX_RANDOM_SERVICE_TIME) + 1; // Service Time은 랜덤 값
 
-    previousArrivalTime = arrivalTime; // 이번 프로세스의 Arrival Time을 저장
+    previousArrivalTime = arrivalTime; // 이번 프로세스의 Arrival Time 저장
 
     updateData({ target: inputs[0] });
     updateData({ target: inputs[1] });
@@ -193,18 +199,19 @@ startButton.addEventListener('click', () => {
     const arrivalTimes = {};
     const readyQueue = [];
 
-    // Initialize ready queue with processes as they arrive
+    // 도착한 프로세스를 ready queue에 추가
     Object.keys(data).forEach(id => {
       const process = { id, ...data[id] };
       arrivalTimes[process.id] = process['Arrival Time'];
       readyQueue.push(process);
     });
 
-    // Sort the ready queue by arrival time
+    // ready queue를 도착 시간순으로 정렬
     readyQueue.sort((a, b) => a['Arrival Time'] - b['Arrival Time']);
 
+    // 라운드 로빈 시뮬레이션
     while (readyQueue.length > 0 || queue.length > 0) {
-      // Add arrived processes to the queue
+      // 도착한 프로세스를 큐에 추가
       while (readyQueue.length > 0 && readyQueue[0]['Arrival Time'] <= time) {
         queue.push(readyQueue.shift());
       }
@@ -228,9 +235,9 @@ startButton.addEventListener('click', () => {
         }
 
         if (process['Service Time'] > 0) {
-          process['Arrival Time'] = finish; // Update arrival time for next round
+          process['Arrival Time'] = finish; // 다음 라운드를 위해 도착 시간 업데이트
           readyQueue.push(process);
-          readyQueue.sort((a, b) => a['Arrival Time'] - b['Arrival Time']); // Ensure queue is sorted by new arrival times
+          readyQueue.sort((a, b) => a['Arrival Time'] - b['Arrival Time']); // 새로운 도착 시간 순으로 정렬
         } else {
           responseTimes[process.id] = finish - arrivalTimes[process.id];
         }
