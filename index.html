@@ -132,7 +132,7 @@ function addRow() {
 // 행 제거 함수
 function removeRow() {
   const rowCount = table.querySelectorAll('tr').length - 1;
-  if (rowCount <= 3) return;
+  if (rowCount <= 2) return;
 
   const lastRow = table.lastChild;
   const inputs = lastRow.querySelectorAll('input');
